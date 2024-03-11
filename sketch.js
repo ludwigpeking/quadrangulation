@@ -8,82 +8,7 @@ let subdivVertices = []; // To store new vertices
 let edgeMidpointMap = new Map(); // Map to store and retrieve edge midpoints by edge key
 let faceCenterVertices = []; // To store center vertices of faces
 let averageEdgeLength = 0; // To store the average edge length of the mesh
-
-class Vertex {
-    constructor(i, j, k) {
-        //i: hexagon ring count : 1 ~ hexRingCount
-        //j: hexagon sector count: 0 ~ 5
-        //k: index in a hexagon sector: 0 ~ (i-1)
-        this.i = i;
-        this.j = j;
-        this.k = k;
-        if (i + j + k === 0) {
-            this.index = 0;
-        } else {
-            this.index = 1 + (i * 6 * (i - 1)) / 2 + j * i + k;
-        }
-        this.edgy = false;
-        if (i === hexRingCount) {
-            this.edgy = true;
-        }
-
-        this.p1 = { x: 0, y: 0 };
-        this.p2 = { x: 0, y: 0 };
-        this.p1.x = width / 2 + i * hexGridDiameter * cos((j * PI) / 3);
-        this.p1.y = height / 2 + i * hexGridDiameter * sin((j * PI) / 3);
-        this.p2.x = width / 2 + i * hexGridDiameter * cos(((j + 1) * PI) / 3);
-        this.p2.y = height / 2 + i * hexGridDiameter * sin(((j + 1) * PI) / 3);
-        //lerp between p1 and p2 by k, k is between 0 and i
-        if (i == 0) {
-            this.x = this.p1.x;
-            this.y = this.p1.y;
-        } else {
-            this.x = lerp(this.p1.x, this.p2.x, k / i);
-            this.y = lerp(this.p1.y, this.p2.y, k / i);
-        }
-    }
-    draw() {
-        ellipse(this.x, this.y, 2, 2);
-        textSize(12);
-        fill(255, 0, 0);
-        text(
-            "(" + this.i + "," + this.j + "," + this.k + ")",
-            this.x + 2,
-            this.y
-        );
-        text(this.index, this.x + 2, this.y + 10);
-    }
-}
-
-class SubdivVertex {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-    }
-}
-
-class Edge {
-    constructor(v1, v2) {
-        this.v1 = v1;
-        this.v2 = v2;
-    }
-    draw() {
-        line(this.v1.x, this.v1.y, this.v2.x, this.v2.y);
-    }
-}
-
-class Face {
-    constructor(vertices) {
-        this.vertices = vertices;
-    }
-    draw() {
-        beginShape();
-        for (let v of this.vertices) {
-            vertex(v.x, v.y);
-        }
-        endShape(CLOSE);
-    }
-}
+let averageFaceArea = 0; // To store the average area of the faces
 
 function setup() {
     createCanvas(800, 800);
@@ -110,66 +35,39 @@ function setup() {
     createFaces();
     mergeTrianglesToQuadsRandomly();
     subdivideMesh();
-    // relaxVertices(1000);
-    for (let face of faces) {
-        fill(200);
-        face.draw();
-    }
-    for (let face of mergedFaces) {
-        fill(0, 255, 255);
-        face.draw();
-    }
-    // for (let vertex of vertices) {
-    //     vertex.draw();
-    // }
-    // for (let edge of edges) {
-    //     edge.draw();
-    // }
-    // all vertices including the vertices, middle points of edges and center of faces, display them all
-
-    for (let i = 0; i < vertices.length; i++) {
-        stroke(0);
-        if (vertices[i].edgy) {
-            stroke(255, 255, 0);
-        }
-        circle(vertices[i].x, vertices[i].y, 6);
-        noStroke();
-        text(i, vertices[i].x, vertices[i].y + 20);
-    }
-
-    for (let vertex of subdivVertices) {
-        stroke(255, 0, 0);
-        if (vertex.edgy) {
-            stroke(255, 255, 0);
-        }
-        circle(vertex.x, vertex.y, 4);
-    }
-    for (let vertex of faceCenterVertices) {
-        stroke(0, 255, 0);
-        circle(vertex.x, vertex.y, 4);
-    }
-    precalculateAdjacentFaces();
+    showInitialGraph();
+    precalculateAdjacentFaces(); // Add faces to the vertice's lists of adjacent faces for later centroid calculation
+    averageFaceArea = calculateAverageArea(faces);
+    console.log("Average face area:", averageFaceArea);
     averageEdgeLength = calculateAverageEdgeLength();
-    console.log("Average edge length:", averageEdgeLength);
+    // vertices.concat(subdivVertices);
+    vertices = vertices.concat(subdivVertices);
+    // console.log("Average edge length:", averageEdgeLength);
 }
 
 function draw() {
     background(220, 30); // Clear the canvas
 
     // frameRate(6);
-
+    // shuffleArray(faces); // Randomize the order of face processing on each frame
+    // shuffleArray(vertices); // Randomize the order of vertex processing on each frame
     // Relax the vertices slightly on each frame
+    // relaxVerticesUsingWeightedCentroids(vertices, faces, 0.001);
     vertices
-        .concat(subdivVertices)
-        .forEach((vertex) => relaxVertexPosition(vertex, 0.5));
+        // .concat(subdivVertices)
+        .forEach((vertex) => relaxVertexPosition(vertex, 0.8));
+
+    // relaxVerticesForArea(1, averageFaceArea, vertices, faces);
     // Redraw the mesh to visualize the current state
     drawMesh();
+    // if (frameCount > 0) {
+    //     noLoop();
+    // }
 }
 
 function createFaces() {
     //central ring
     const p0 = vertices[0];
-
     for (let j = 0; j < 6; j++) {
         const p1 = vertices[j + 1];
         const p2 = vertices[((j + 1) % 6) + 1];
@@ -263,77 +161,6 @@ function mergeTrianglesToQuadsRandomly() {
     faces = mergedFaces.concat(mergedFacesTemp, faces);
 }
 
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]]; // Swap elements
-    }
-}
-
-function getVertexIndex(i, j, k) {
-    if (i === 0) return 0; // Central point
-    return 1 + (i * 6 * (i - 1)) / 2 + j * i + k;
-}
-
-// Function to create or retrieve a vertex at an edge midpoint
-function getOrCreateEdgeMidpoint(v1, v2) {
-    let edgeKey = `${Math.min(v1.index, v2.index)}-${Math.max(
-        v1.index,
-        v2.index
-    )}`;
-    if (edgeMidpointMap.has(edgeKey)) {
-        return edgeMidpointMap.get(edgeKey);
-    } else {
-        let midpoint = new SubdivVertex((v1.x + v2.x) / 2, (v1.y + v2.y) / 2);
-        if (v1.edgy && v2.edgy) {
-            midpoint.edgy = true;
-        }
-        subdivVertices.push(midpoint);
-        edgeMidpointMap.set(edgeKey, midpoint);
-        return midpoint;
-    }
-}
-
-// Function to create a vertex at the center of a face
-function createFaceCenter(vertices) {
-    let centerX = vertices.reduce((sum, v) => sum + v.x, 0) / vertices.length;
-    let centerY = vertices.reduce((sum, v) => sum + v.y, 0) / vertices.length;
-    let centerVertex = new SubdivVertex(centerX, centerY);
-    faceCenterVertices.push(centerVertex);
-    subdivVertices.push(centerVertex);
-    return centerVertex;
-}
-
-function subdivideMesh() {
-    let newFaces = []; // Store new subdivided faces here
-
-    faces.forEach((face) => {
-        // Compute edge midpoints
-        let midpoints = [];
-        for (let i = 0; i < face.vertices.length; i++) {
-            let v1 = face.vertices[i];
-            let v2 = face.vertices[(i + 1) % face.vertices.length];
-            midpoints.push(getOrCreateEdgeMidpoint(v1, v2));
-        }
-
-        // Compute face center
-        let centerVertex = createFaceCenter(face.vertices);
-
-        // Form new quads for each segment of the original face
-        for (let i = 0; i < face.vertices.length; i++) {
-            let newQuadVertices = [
-                face.vertices[i],
-                midpoints[i],
-                centerVertex,
-                midpoints[(i - 1 + midpoints.length) % midpoints.length],
-            ];
-            newFaces.push(new Face(newQuadVertices));
-        }
-    });
-
-    faces = newFaces; // Replace old faces with the new subdivided faces
-}
-
 function relaxVertices(iterations) {
     // Combine original and subdivided vertices for processing
     let allVertices = vertices.concat(subdivVertices);
@@ -390,9 +217,17 @@ function drawMesh() {
     // Draw faces
     faces.forEach((face) => {
         beginShape();
+        stroke(0);
         fill(200, 10); // Set face color
         face.vertices.forEach((v) => vertex(v.x, v.y));
         endShape(CLOSE);
+        noStroke();
+        fill(0, 50, 50);
+        text(
+            round(calculateFaceArea(face) / averageFaceArea, 2),
+            getFaceCentroid(face).x - 5,
+            getFaceCentroid(face).y
+        );
     });
 
     // Draw vertices
@@ -404,42 +239,40 @@ function drawMesh() {
     });
 }
 
-function relaxVerticesForArea(iterations) {
+function relaxVerticesForArea(iterations, averageArea, vertices, faces) {
     for (let it = 0; it < iterations; it++) {
-        // Assuming you have a function to calculate the area of a quad
-        // and a way to associate each vertex with its adjacent quads
+        faces.forEach((face) => {
+            let faceArea = calculateFaceArea(face);
+            const areaFactor =
+                faceArea < averageArea * 0.8
+                    ? -1
+                    : faceArea > averageArea * 1.25
+                    ? 1
+                    : 0;
+            if (areaFactor !== 0) {
+                // Activate only if adjustment is needed
+                let centroid = calculateFaceCentroid(face);
+                face.vertices.forEach((vertex) => {
+                    if (!vertex.edgy) {
+                        // Calculate direction from vertex to centroid
+                        let direction = {
+                            x: centroid.x - vertex.x,
+                            y: centroid.y - vertex.y,
+                        };
+                        let magnitude = Math.sqrt(
+                            direction.x ** 2 + direction.y ** 2
+                        );
+                        direction.x /= magnitude; // Normalize
+                        direction.y /= magnitude;
 
-        vertices.forEach((vertex) => {
-            if (vertex.edgy) return; // Skip edgy vertices
-
-            let adjacentQuads = getAdjacentQuads(vertex);
-            let averageArea = calculateAverageArea(adjacentQuads);
-            let centroid = calculateCentroid(adjacentQuads); // Averaged centroid of adjacent quads
-
-            // Direction based on area difference could be towards or away from centroid
-            // This is a simplification and may not always be correct
-            let direction = {
-                x: centroid.x - vertex.x,
-                y: centroid.y - vertex.y,
-            };
-            let magnitude = Math.sqrt(direction.x ** 2 + direction.y ** 2);
-            direction.x /= magnitude; // Normalize
-            direction.y /= magnitude;
-
-            // Adjust vertex position based on a simplistic interpretation of the desired area change
-            // The actual implementation would require more sophisticated geometric reasoning
-            vertex.x +=
-                direction.x * areaAdjustmentFactor(adjacentQuads, averageArea);
-            vertex.y +=
-                direction.y * areaAdjustmentFactor(adjacentQuads, averageArea);
+                        // Move vertex away from centroid to adjust area
+                        vertex.x += direction.x * areaFactor; // The factor controls how much to adjust
+                        vertex.y += direction.y * areaFactor;
+                    }
+                });
+            }
         });
     }
-}
-
-function areaAdjustmentFactor(adjacentQuads, averageArea) {
-    // This function calculates a factor for adjusting the vertex position based on the difference in area
-    // Placeholder for actual implementation
-    return 0.1; // Simplified example, replace with actual logic
 }
 
 function precalculateAdjacentFaces() {
@@ -465,6 +298,7 @@ function relaxVertexPosition(vertex, strength = 0.1) {
     let sumCentroid = vertex.adjacentFaces.reduce(
         (acc, face) => {
             let centroid = getFaceCentroid(face);
+            // circle(centroid.x, centroid.y, 5);
             acc.x += centroid.x;
             acc.y += centroid.y;
             return acc;
@@ -503,4 +337,63 @@ function calculateAverageEdgeLength() {
     });
 
     return totalLength / edgeCount;
+}
+
+function getAdjacentQuads(vertex) {
+    let adjacentFaces = [];
+    for (let face of faces) {
+        if (face.vertices.includes(vertex)) {
+            adjacentFaces.push(face);
+        }
+    }
+    return adjacentFaces;
+}
+
+function calculateWeightedCentroid(vertex, faces) {
+    let weightedSumX = 0;
+    let weightedSumY = 0;
+    let totalWeight = 0;
+
+    const adjacentFaces = getAdjacentQuads(vertex);
+
+    adjacentFaces.forEach((face) => {
+        const area = calculateFaceArea(face);
+        const centroid = calculateFaceCentroid(face);
+
+        weightedSumX += centroid.x * area;
+        weightedSumY += centroid.y * area;
+        totalWeight += area;
+    });
+
+    if (totalWeight === 0) {
+        // Avoid division by zero
+        return { x: vertex.x, y: vertex.y };
+    }
+
+    return {
+        x: weightedSumX / totalWeight,
+        y: weightedSumY / totalWeight,
+    };
+}
+
+function relaxVerticesUsingWeightedCentroids(vertices, faces, strength = 0.01) {
+    // Note the reduced strength for finer control
+    vertices.forEach((vertex) => {
+        if (vertex.edgy) return; // Skip 'edgy' vertices
+
+        const weightedCentroid = calculateWeightedCentroid(vertex, faces);
+        let dx = weightedCentroid.x - vertex.x;
+        let dy = weightedCentroid.y - vertex.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Normalize the direction vector
+        if (distance > 0) {
+            dx /= distance;
+            dy /= distance;
+        }
+
+        // Apply the adjustment with reduced strength, ensuring it's towards the weighted centroid
+        vertex.x += dx * strength * distance;
+        vertex.y += dy * strength * distance;
+    });
 }
