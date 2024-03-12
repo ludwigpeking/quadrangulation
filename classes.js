@@ -64,12 +64,84 @@ class Edge {
 class Face {
     constructor(vertices) {
         this.vertices = vertices;
+        this.centerHairLength = 2;
     }
     draw() {
+        fill(200, 20);
+        stroke(20);
+        strokeWeight(0.3);
         beginShape();
         for (let v of this.vertices) {
             vertex(v.x, v.y);
         }
         endShape(CLOSE);
+        //draw a cross at the center of the face, from the middle points from the opposite edges. the hair of the cross is 5 pixels
+        let mid1 = {
+            x: (this.vertices[0].x + this.vertices[3].x) / 2,
+            y: (this.vertices[0].y + this.vertices[3].y) / 2,
+        };
+        let mid2 = {
+            x: (this.vertices[3].x + this.vertices[2].x) / 2,
+            y: (this.vertices[3].y + this.vertices[2].y) / 2,
+        };
+        let mid3 = {
+            x: (this.vertices[2].x + this.vertices[1].x) / 2,
+            y: (this.vertices[2].y + this.vertices[1].y) / 2,
+        };
+        let mid4 = {
+            x: (this.vertices[1].x + this.vertices[0].x) / 2,
+            y: (this.vertices[1].y + this.vertices[0].y) / 2,
+        };
+
+        const interSection = findIntersection(mid1, mid3, mid2, mid4);
+        drawLineOfLengthAFromV1ToV2Direction(
+            interSection,
+            mid1,
+            this.centerHairLength
+        );
+        drawLineOfLengthAFromV1ToV2Direction(
+            interSection,
+            mid2,
+            this.centerHairLength
+        );
+        drawLineOfLengthAFromV1ToV2Direction(
+            interSection,
+            mid3,
+            this.centerHairLength
+        );
+        drawLineOfLengthAFromV1ToV2Direction(
+            interSection,
+            mid4,
+            this.centerHairLength
+        );
     }
+}
+
+function findIntersection(v1, v2, v3, v4) {
+    let x1 = v1.x;
+    let y1 = v1.y;
+    let x2 = v2.x;
+    let y2 = v2.y;
+    let x3 = v3.x;
+    let y3 = v3.y;
+    let x4 = v4.x;
+    let y4 = v4.y;
+    let x =
+        ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) /
+        ((x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4));
+    let y =
+        ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) /
+        ((x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4));
+    return { x: x, y: y };
+}
+
+function drawLineOfLengthAFromV1ToV2Direction(v1, v2, a) {
+    let x1 = v1.x;
+    let y1 = v1.y;
+    let x2 = v2.x;
+    let y2 = v2.y;
+    let d = dist(x1, y1, x2, y2);
+    let x = x1 + ((x2 - x1) * a) / d;
+    let y = y1 + ((y2 - y1) * a) / d;
+    line(x1, y1, x, y);
 }

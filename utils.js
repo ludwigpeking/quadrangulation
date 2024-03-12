@@ -33,7 +33,7 @@ function showInitialGraph() {
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]]; // Swap elements
     }
 }
@@ -109,6 +109,7 @@ function calculateFaceArea(face) {
         let v2 = face.vertices[(i + 1) % face.vertices.length];
         area += v1.x * v2.y - v2.x * v1.y;
     }
+    face.area = Math.abs(area / 2);
     return Math.abs(area / 2);
 }
 
@@ -153,7 +154,7 @@ function calculateVertexCentroid(vertex, faces) {
 // Example of shuffling faces array
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
 }
