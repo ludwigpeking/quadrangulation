@@ -4,10 +4,10 @@ This project aims to test the quadangulation algorithm for some stylized modelin
 
 Due to the difference in algorithmic specificty, there is some difference in the effects of it from Oskar's original.
 
-![Quadangulation Example](results\frame_0.png)
-![Quadangulation Example](results\frame_5.png)
-![Quadangulation Example](results\frame_20.png)
-![Quadangulation Example](results\frame_101.png)
-![Quadangulation Example](results\download.png)
+![Quadangulation Example](results/frame_0.png)
+![Quadangulation Example](results/frame_5.png)
+![Quadangulation Example](results/frame_20.png)
+![Quadangulation Example](results/frame_101.png)
+![Quadangulation Example](results/download.png)
 
 <!-- ![Quadangulation Example](results\download(2).png) -->
